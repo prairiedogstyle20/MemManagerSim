@@ -58,7 +58,18 @@ void MemoryManager::request_memory(int requestSize, int requestId){
 
   if(task_done == false){
     std:: cout << "here \n";
+
     this -> collect_garbage(requestSize, requestId);
+    std::vector<Process>::iterator temp_pit = processList.begin();
+    for(temp_pit; temp_pit < processList.end(); temp_pit++){
+      if(temp_pit == processList.begin()){
+        temp_pit -> set_plocation(0);
+      }
+      else {
+        temp_pit -> set_plocation((temp_pit - 1) -> get_plocation() + temp_pit -> get_size());
+        std:: cout << "new loc: " + (temp_pit - 1) -> get_plocation() + temp_pit -> get_size();
+      }
+    }
 
   }
 }
@@ -71,6 +82,7 @@ void MemoryManager::collect_garbage(int reqsize, int reqID){
   std::vector<Process>::iterator pit = processList.begin();
   for(pit; pit < processList.end(); pit ++){
     totalGarbage += pit -> get_size();
+    pit -> set_plocation(totalGarbage);
     this -> request_memory(pit -> get_size(), std::stoi(pit -> get_name()));
   }
   if(totalGarbage + reqsize > 20)
@@ -172,7 +184,15 @@ void MemoryManager::deallocate_memory(int id){
 void MemoryManager::gen_single_process(int p_size){
   Process* tempProcess = new Process(p_size);
   this -> request_memory(tempProcess -> get_size(), std::stoi(tempProcess -> get_name()));
+
+  std::vector<MemSpaces>::iterator mit = freeList.begin();
+  for(mit; mit < freeList.end(); mit++){
+    if(std::to_string(mit -> get_pid()) == tempProcess -> get_name()){
+      tempProcess -> set_plocation(mit -> get_begin());
+    }
+  }
   this -> processList.push_back(*tempProcess);
+
 }
 
 void MemoryManager::set_beginFree(int newBegin){
