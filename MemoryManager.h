@@ -25,6 +25,8 @@ class MemoryManager {
     int get_endFree();
 
     void request_memory(int, int);
+    void deallocate_memory(int);
+    void collect_garbage(int, int);
 
     std::vector<Process> processList;
     std::vector<Process>::iterator pIT;

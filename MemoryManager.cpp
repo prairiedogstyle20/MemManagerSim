@@ -4,6 +4,8 @@
 #include "MemSpaces.h"
 #include <iostream>
 #include <string>
+#include <algorithm>
+#include <QMessageBox>
 
 //#include <QDebug>
 
@@ -26,27 +28,143 @@ void MemoryManager:: first_mem_part(){
   this -> gen_new_part(this -> get_beginFree(), this -> get_endFree(),0);
 }
 
-void MemoryManager::gen_new_part(int startPos, int endPos, int pname = 0){
+void MemoryManager::gen_new_part(int startPos, int endPos, int pname){
   MemSpaces *tempSpace = new MemSpaces(startPos, endPos);
   tempSpace -> set_pid(pname);
   this -> freeList.push_back(*tempSpace);
 }
 
 void MemoryManager::request_memory(int requestSize, int requestId){
-  std::vector<MemSpaces>::iterator it = this -> freeList.begin();
-  while(it != freeList.end()){
+  std::vector<MemSpaces>::iterator it = freeList.begin();
+  bool task_done = false;
+  while(it != freeList.end() && task_done == false){
     if(it -> get_size() > requestSize && it -> get_pid() == 0){
-      this -> gen_new_part(it -> get_begin(), requestSize, requestId);
-      this -> gen_new_part(it -> get_begin() + requestSize, it ->get_end(),0);
-      //it = freeList.erase(it);
-      break;
+      int tempBegin = it -> get_begin();
+      int tempEnd = it -> get_end();
+      it = freeList.erase(it);
+      this -> gen_new_part(tempBegin, tempBegin + requestSize, requestId);
+      this -> gen_new_part(tempBegin + requestSize, tempEnd,0);
+      std::sort(freeList.begin(), freeList.end());
+      task_done = true;
     }
     else if(it ->get_size() == requestSize && it ->get_pid() == 0){
-      it ->set_pid(it ->get_pid());
-      break;
+      it ->set_pid(requestId);
+      task_done = true;
     }
     else{
       ++it;
+    }
+  }
+
+  if(task_done == false){
+    std:: cout << "here \n";
+    this -> collect_garbage(requestSize, requestId);
+
+  }
+}
+
+void MemoryManager::collect_garbage(int reqsize, int reqID){
+  std:: cout << "here \n";
+  freeList.clear();
+  this -> first_mem_part();
+  int totalGarbage = 0;
+  std::vector<Process>::iterator pit = processList.begin();
+  for(pit; pit < processList.end(); pit ++){
+    totalGarbage += pit -> get_size();
+    this -> request_memory(pit -> get_size(), std::stoi(pit -> get_name()));
+  }
+  if(totalGarbage + reqsize > 20)
+  {
+    QMessageBox messageBox;
+    messageBox.critical(0,"Error","Not enough memory for process !");
+    messageBox.setFixedSize(500,200);
+  }
+  else{
+    this -> request_memory(reqsize, reqID);
+
+  }
+}
+
+void MemoryManager::deallocate_memory(int id){
+  std::vector<MemSpaces>::iterator it = freeList.begin();
+  bool task_done = false;
+  //printf("iterator %p\n", it);
+//  printf("freeList begin %p\n", freeList.begin());
+//  printf("PID %d\n",id);
+//  printf("PID %d\n",it -> get_pid());
+  int vector_index_adjuster = 0;
+  while(it != freeList.end() && task_done == false){
+    if(it -> get_pid() == id){
+      // check if deallocating at start of list
+      if(it == freeList.begin() && freeList.size() == 1 ){
+        it -> set_pid(0);
+      }
+      else if(it == freeList.begin() && freeList.size() > 1){
+        auto next_it = it + 1;
+        printf("iterator %p\n", it);
+        if(next_it -> get_pid() == 0){
+          //int tempSize = it -> get_size() + next_it -> get_size();
+          int tempBegin = it -> get_begin();
+          int tempEnd = next_it -> get_end();
+          MemSpaces *combinedSpace = new MemSpaces(tempBegin, tempEnd);
+          freeList.erase(it, next_it + 1);
+          freeList.insert(freeList.begin(), *combinedSpace);
+        }
+        else{
+          it -> set_pid(0);
+        }
+      }
+      else if(it != freeList.begin() && it!= freeList.end()){
+        auto prev_it = it - 1;
+        auto next_it = it + 1;
+        if(next_it -> get_pid() != 0 && prev_it -> get_pid() != 0){
+          it -> set_pid(0);
+        }
+        else if(next_it -> get_pid() == 0 && prev_it -> get_pid() != 0){
+          int tempBegin = it -> get_begin();
+          int tempEnd = next_it -> get_end();
+          MemSpaces *combinedSpace = new MemSpaces(tempBegin, tempEnd);
+          freeList.erase(it, next_it + 1);
+          freeList.insert(freeList.begin()+vector_index_adjuster, *combinedSpace);
+        }
+        else if(next_it -> get_pid() != 0 && prev_it -> get_pid() == 0){
+          int tempBegin = prev_it -> get_begin();
+          int tempEnd = it -> get_end();
+          MemSpaces *combinedSpace = new MemSpaces(tempBegin, tempEnd);
+          freeList.erase(prev_it,it + 1);
+          freeList.insert(freeList.begin()+vector_index_adjuster-1, *combinedSpace);
+
+        }
+        else if(next_it -> get_pid() == 0 && prev_it -> get_pid() == 0){
+          int tempBegin = prev_it -> get_begin();
+          int tempEnd = next_it -> get_end();
+          MemSpaces *combinedSpace = new MemSpaces(tempBegin, tempEnd);
+          freeList.erase(prev_it, next_it + 1);
+          freeList.insert(freeList.begin()+vector_index_adjuster-1, *combinedSpace);
+        }
+      }
+      else if(it == freeList.end()){
+        auto prev_it = it - 1;
+        if(prev_it -> get_pid() == 0){
+          int tempBegin = prev_it -> get_begin();
+          int tempEnd = it -> get_end();
+          MemSpaces *combinedSpace = new MemSpaces(tempBegin, tempEnd);
+          freeList.erase(prev_it, it + 1);
+          freeList.insert(freeList.begin()+vector_index_adjuster-1, *combinedSpace);
+        }
+        else{
+          it -> set_pid(0);
+        }
+      }
+      else{
+        it -> set_pid(0);
+      }
+      std::sort(freeList.begin(), freeList.end());
+      task_done = true;
+    }
+    else{
+      ++it;
+      ++vector_index_adjuster;
     }
   }
 }

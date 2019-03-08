@@ -19,6 +19,10 @@ public:
   int get_begin() const;
   int get_end() const;
 
+  friend bool operator < (MemSpaces const &lhs, MemSpaces const &rhs ){
+      return lhs.begin < rhs.begin;
+  }
+
   std::string get_all_info();
 
 private:

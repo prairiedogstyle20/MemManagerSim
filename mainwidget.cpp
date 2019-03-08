@@ -5,6 +5,7 @@
 #include "mainwidget.h"
 #include "MemoryManager.h"
 #include <string>
+#include <iostream>
 
 // Constructor for main widget
 MainWidget::MainWidget(QWidget *parent) :QWidget(parent)
@@ -78,6 +79,8 @@ void MainWidget:: add_processes(){
 void MainWidget::remove_process(){
   int currIndex = this -> combo_kill_process -> currentIndex();
   //std::vector<Process>::iterator tempPIT = this -> main_mem_manager -> pIT;
+  std::string tempID = (this -> main_mem_manager -> processList.begin()+currIndex) -> get_name();
+  this -> main_mem_manager -> deallocate_memory(std::stoi(tempID));
   this -> main_mem_manager -> processList.erase(this -> main_mem_manager -> processList.begin()+currIndex);
   this -> update(0);
 }
@@ -87,10 +90,11 @@ void MainWidget:: update(int opCode){
   if(opCode == 1){
     this -> process_status_text -> clear();
   }
-
   this -> combo_kill_process -> clear();
   this -> combo_process_status -> clear();
+
   this -> add_processes();
+
   this -> textEdit_ -> clear();
   this -> set_textEdit();
 }
@@ -106,10 +110,11 @@ void MainWidget::set_process_status_text(){
 }
 
 void MainWidget::set_textEdit(){
-  std::string temp;
+  std::string temp = "Free List: \n";
   std::vector<MemSpaces>::iterator it;
   for(it = this -> main_mem_manager -> freeList.begin(); it <this -> main_mem_manager -> freeList.end(); it++){
-    temp += it -> get_all_info();
+    //if(it -> get_pid() == 0)
+      temp += it -> get_all_info() + '\n';
   }
   QString tempString = QString::fromStdString(temp);
   this -> textEdit_ -> setPlainText(tempString);
